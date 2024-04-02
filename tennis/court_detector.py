@@ -27,7 +27,7 @@ class CourtDetector(object):
     球场检测和跟踪
     """
 
-    def __init__(self):
+    def __init__(self, max_age=40):
         self.colour_threshold = 200   # 二值化阈值
         self.dist_tau = 3  # 控制线宽的参数
         self.intensity_threshold = 40  # 判断球场线的参数
@@ -38,7 +38,7 @@ class CourtDetector(object):
         self.gray = None
         self.pmatrix_list = []
         self.inv_pmatrix_list = []
-        self.max_age = 40
+        self.max_age = max_age
         self.best_conf = 12
         self.court_match_threshold = 2000
         self.frame_points = None

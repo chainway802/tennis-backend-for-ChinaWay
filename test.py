@@ -19,7 +19,7 @@ def test_detect_court(video_path):
     # 获取视频属性
     fps, total_frame_length, w, h = utils.get_video_properties(video)
     # 初始化球场检测器
-    court_detector = tennis.CourtDetector()
+    court_detector = tennis.CourtDetector(max_age=40)
 
     # 初始化一些数据
     frame_ind = 0
