@@ -6,4 +6,4 @@
 @Version  :   1.0
 @License  :   (C)Copyright 2024
 """
-from .detect_court import *
+from .court_detector import *

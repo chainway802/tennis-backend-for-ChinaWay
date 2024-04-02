@@ -18,6 +18,8 @@ def test_detect_court(video_path):
     video = cv2.VideoCapture(video_path)
     # 获取视频属性
     fps, total_frame_length, w, h = utils.get_video_properties(video)
+    # 初始化球场检测器
+    court_detector = tennis.CourtDetector()
 
     # 初始化一些数据
     frame_ind = 0
@@ -32,9 +34,9 @@ def test_detect_court(video_path):
         if ret:
             # 检测第一帧的场地线
             if frame_ind == 1:
-                lines, pmatrix = tennis.detect_court(frame)
+                lines = court_detector.detect_court(frame)
             else:  # 其他帧跟踪场地线
-                lines, pmatrix = tennis.detect_court(frame, pmatrix=pmatrix)
+                lines = court_detector.detect_court(frame)
             # 在当前帧画出场地线
             for i in range(0, len(lines), 4):
                 x1, y1, x2, y2 = lines[i:i + 4]
@@ -50,7 +52,7 @@ def test_detect_court(video_path):
 
     # 初始化输出视频
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    output_video = cv2.VideoWriter(r"./static/video/Output_Court.mp4", fourcc, fps, (w, h))
+    output_video = cv2.VideoWriter(video_path.replace("input", "output"), fourcc, fps, (w, h))
     # 遍历写入视频
     for frame in new_frames:
         output_video.write(frame)
@@ -59,4 +61,4 @@ def test_detect_court(video_path):
 
 
 if __name__ == '__main__':
-    test_detect_court(r"./static/video/video_input3.mp4")
+    test_detect_court(r"./static/video/video_input1.mp4")
