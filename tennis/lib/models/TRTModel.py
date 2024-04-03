@@ -27,7 +27,7 @@ class TRTModel(AbstractModel, ABC):
         self.engine = self._load_engine(self.engine_path)
         self.context = self.engine.create_execution_context()
         self.inputs, self.outputs, self.bindings, self.stream = self._allocate_buffers()
-
+        self.inputshape = self.engine.get_tensor_shape(list(self.inputs.keys())[0])[-2:]
     def inference(self, x: np.ndarray):
         input_name = list(self.inputs.keys())[0]  # 只针对单输入
         dtype = self._trt_to_np_dtype(self.engine.get_tensor_dtype(input_name))
