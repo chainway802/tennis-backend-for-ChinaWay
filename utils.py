@@ -39,4 +39,3 @@ def get_video_properties(video):
         v_width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
         v_height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
     return fps, length, v_width, v_height
-

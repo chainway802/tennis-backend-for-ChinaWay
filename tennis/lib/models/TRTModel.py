@@ -14,13 +14,14 @@ import pycuda.driver as cuda
 import pycuda.autoinit
 
 from .AbstractModel import AbstractModel
-
+from ..utils.process import load_tensorrt_plugin
 
 class TRTModel(AbstractModel, ABC):
     def __init__(self, max_batch_size=1):
         self._output_names = None
         self.output_dims = {}
         self.max_batch_size = max_batch_size
+        load_tensorrt_plugin()
 
     def init_model(self, engine_path):
         self.engine_path = engine_path
@@ -28,6 +29,7 @@ class TRTModel(AbstractModel, ABC):
         self.context = self.engine.create_execution_context()
         self.inputs, self.outputs, self.bindings, self.stream = self._allocate_buffers()
         self.inputshape = self.engine.get_tensor_shape(list(self.inputs.keys())[0])[-2:]
+        
     def inference(self, x: np.ndarray):
         input_name = list(self.inputs.keys())[0]  # 只针对单输入
         dtype = self._trt_to_np_dtype(self.engine.get_tensor_dtype(input_name))
@@ -79,7 +81,7 @@ class TRTModel(AbstractModel, ABC):
 
         return inputs, outputs, bindings, stream
 
-    def _trt_to_np_dtype(trt_dtype):
+    def _trt_to_np_dtype(self, trt_dtype):  # 之前少了self
         """Convert TensorRT dtype to NumPy dtype."""
         if trt_dtype == trt.DataType.BOOL:
             return np.bool_  # 使用 np.bool_ 而不是 np.bool

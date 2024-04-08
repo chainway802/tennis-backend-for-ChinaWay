@@ -17,8 +17,8 @@ class PlayerDetectionModel(TRTModel):
         print("初始化球员检测模型")
 
     def _pre_process(self, frame, channel_convert=False, resized_shape=(320, 320)):
-        cv2.resize(frame, resized_shape).astype(np.float32)
-        np.transpose(frame, (2, 0, 1))
+        frame = cv2.resize(frame, resized_shape).astype(np.float32)
+        frame = np.transpose(frame, (2, 0, 1))
         image_channels = frame.shape[0]
         if channel_convert:
             # 将channel维度的顺序调换为(2,1,0)
@@ -33,11 +33,18 @@ class PlayerDetectionModel(TRTModel):
         return frame_pre       
         print("球场检测模型中的预处理")
 
-    def inference(self, frame):
-        data_pre = self._pre_process(frame, channel_convert=False, resized_shape=self.inputshape)
+    def inference(self, frame, channel_convert=False, human_max_numbers_by_area=3, racket_max_numbers_by_area=2, 
+                  human_max_numbers=2, racket_max_numbers=1, human_thr=0.4, racket_thr=0.3, 
+                  human_area_sort=True, racket_area_sort=True):
+        
+        data_pre = self._pre_process(frame, channel_convert=channel_convert, resized_shape=self.inputshape)
         det_results = super().inference(data_pre)
-        human_bboxes_post = self._post_process(det_results, frame.shape, max_numbers_by_area=3, max_numbers=2, resized_shape=self.inputshape, thr=0.4, label=0, area_sort=True)
-        racket_bboxes_post = self._post_process(det_results, frame.shape, max_numbers_by_area=2, max_numbers=1, resized_shape=self.inputshape, thr=0.4, label=38, area_sort=True)
+        human_bboxes_post = self._post_process(det_results, frame.shape, max_numbers_by_area=human_max_numbers_by_area, 
+                                               max_numbers=human_max_numbers, resized_shape=self.inputshape, 
+                                               thr=human_thr, label=0, area_sort=human_area_sort)
+        racket_bboxes_post = self._post_process(det_results, frame.shape, max_numbers_by_area=racket_max_numbers_by_area, 
+                                                max_numbers=racket_max_numbers, resized_shape=self.inputshape, 
+                                                thr=racket_thr, label=38, area_sort=racket_area_sort)
         return human_bboxes_post, racket_bboxes_post
     
     def _post_process(self, det_results, img_shape, max_numbers_by_area, max_numbers, resized_shape=(320, 320), thr=0.4, label=0, area_sort=False):
@@ -47,7 +54,6 @@ class PlayerDetectionModel(TRTModel):
         # bboxes_with_labels的维度为(N, 6)，其中N为检测到的目标个数，5代表(x1, y1, x2, y2, score, label)
         bboxes_with_labels = bboxes_with_labels[bboxes_with_labels[:, 5] == label]
         bboxes_with_labels = bboxes_with_labels[bboxes_with_labels[:, 4] > thr]
-        # print('numbers of detected people:', len(bboxes_with_labels))
         if len(bboxes_with_labels) == 0:
             return None
         # 计算检测框的面积

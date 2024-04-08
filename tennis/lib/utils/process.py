@@ -80,7 +80,7 @@ def load_tensorrt_plugin() -> bool:
     Returns:
         bool: True if TensorRT plugin library is successfully loaded.
     """
-    lib_path = '/aidata/mmfuck/mmdeploy/mmdeploy/lib/libmmdeploy_tensorrt_ops.so'
+    lib_path = '/aidata/mmfuck/mmdeploy/mmdeploy/lib/libmmdeploy_tensorrt_ops.so'  # 这个插件文件，不同服务器得重新编译获得
     success = False
     if os.path.exists(lib_path):
         ctypes.CDLL(lib_path)
