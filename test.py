@@ -11,7 +11,11 @@ import utils
 import tennis
 import time
 import numpy as np
-ACTION_TYPE = {0:'idle', 1:'forehand', 2:'backhand', 3:'serve'}
+from PIL import Image, ImageDraw
+import matplotlib.pyplot as plt
+
+ACTION_TYPE = {0: 'idle', 1: 'forehand', 2: 'backhand', 3: 'serve'}
+
 
 def test_detect_court(video_path):
     # 加载视频
@@ -89,7 +93,7 @@ def test_detect_player(video_path, engine_path):
                 for bbox in racket_bboxes:
                     x1, y1, x2, y2, _ = bbox
                     frame = cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 5)
-        
+
             new_frames.append(frame)
         else:  # 视频结尾跳出循环
             break
@@ -99,11 +103,12 @@ def test_detect_player(video_path, engine_path):
     # 遍历写入视频
     for frame in new_frames:
         output_video.write(frame)
-        
+
     # 释放打开的视频
     video.release()
     # 释放输出的视频
     output_video.release()
+
 
 def test_track_player(video_path, engine_path):
     # 加载视频
@@ -129,10 +134,10 @@ def test_track_player(video_path, engine_path):
             # 检测球员
             human_bboxes, racket_bboxes = player_detector.detect(frame)
             # sort跟踪器更新      
-            trackers, matched_dets, primary_id = player_tracker.update(human_bboxes, racket_bboxes) 
+            trackers, matched_dets, primary_id = player_tracker.update(human_bboxes, racket_bboxes)
             # 在当前帧画出球员框
             if trackers is not None and primary_id is not None:
-                player_bbox = trackers[trackers[:,4] == primary_id].squeeze()
+                player_bbox = trackers[trackers[:, 4] == primary_id].squeeze()
                 x1, y1, x2, y2, _ = player_bbox
                 frame = cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 5)
                 frame = cv2.putText(frame, f"Player ID: {primary_id}", (int(x1), int(y1)), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
@@ -151,6 +156,7 @@ def test_track_player(video_path, engine_path):
         output_video.write(frame)
     # 释放输出的视频
     output_video.release()
+
 
 def test_pose_player(video_path, det_engine, pose_engine):
     # 加载视频
@@ -177,16 +183,16 @@ def test_pose_player(video_path, det_engine, pose_engine):
             # 检测球员
             human_bboxes, racket_bboxes = player_detector.detect(frame)
             # sort跟踪器更新      
-            trackers, matched_dets, primary_id = player_tracker.update(human_bboxes, racket_bboxes) 
-            
+            trackers, matched_dets, primary_id = player_tracker.update(human_bboxes, racket_bboxes)
+
             if trackers is not None and primary_id is not None:
-                player_bbox = trackers[trackers[:,4] == primary_id].squeeze()
+                player_bbox = trackers[trackers[:, 4] == primary_id].squeeze()
                 kpts = player_poser.detect(frame, player_bbox)
                 if kpts is not None:
                     for kpt in kpts:
                         x, y = kpt
                         frame = cv2.circle(frame, (int(x), int(y)), 5, (0, 0, 255), -1)
-            
+
             cv2.imwrite('frame.jpg', frame)
             new_frames.append(frame)
         else:  # 视频结尾跳出循环
@@ -203,7 +209,8 @@ def test_pose_player(video_path, det_engine, pose_engine):
         output_video.write(frame)
     # 释放输出的视频
     output_video.release()
-    
+
+
 def test_action_player(video_path, det_engine, pose_engine, action_engine):
     # 加载视频
     video = cv2.VideoCapture(video_path)
@@ -232,10 +239,10 @@ def test_action_player(video_path, det_engine, pose_engine, action_engine):
             # 检测球员
             human_bboxes, racket_bboxes = player_detector.detect(frame)
             # sort跟踪器更新      
-            trackers, matched_dets, primary_id = player_tracker.update(human_bboxes, racket_bboxes) 
-            
+            trackers, matched_dets, primary_id = player_tracker.update(human_bboxes, racket_bboxes)
+
             if trackers is not None and primary_id is not None:
-                player_bbox = trackers[trackers[:,4] == primary_id].squeeze()
+                player_bbox = trackers[trackers[:, 4] == primary_id].squeeze()
                 kpts = player_poser.detect(frame, player_bbox)
                 if kpts is not None:
                     for kpt in kpts:
@@ -247,19 +254,18 @@ def test_action_player(video_path, det_engine, pose_engine, action_engine):
                         # 首先计算文本框大小
                         (text_width, text_height), _ = cv2.getTextSize(count_text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 1)
                         # 在文本下方绘制填充矩形作为背景,每个id的文本框高度为40，宽度为文本宽度+20,竖直间距为10 
-                        cv2.rectangle(frame, (10, 30 - text_height - 10 + 50), (10 + text_width + 20, 40 + 50), (186,196,206), -1)
-                        cv2.putText(frame, count_text, (10, 30 + 50), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (1,31,32), 2)
-                trackers = trackers[trackers[:,4] == primary_id]
+                        cv2.rectangle(frame, (10, 30 - text_height - 10 + 50), (10 + text_width + 20, 40 + 50), (186, 196, 206), -1)
+                        cv2.putText(frame, count_text, (10, 30 + 50), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (1, 31, 32), 2)
+                trackers = trackers[trackers[:, 4] == primary_id]
             # 每隔300帧，检查primary_id对应的action_counter是否有更新：
             if frame_ind % 300 == 1 and primary_id is not None and primary_id in actioncounter_with_id:
                 if temp_shot_count == actioncounter_with_id[primary_id]:
                     primary_id = None
                 else:
                     temp_shot_count = actioncounter_with_id[primary_id].copy()
-            
+
             # 添加动作统计文本以及对应id
 
-                
             # cv2.imwrite('frame.jpg', frame)
             new_frames.append(frame)
         else:  # 视频结尾跳出循环
@@ -277,12 +283,52 @@ def test_action_player(video_path, det_engine, pose_engine, action_engine):
         output_video.write(frame)
     # 释放输出的视频
     output_video.release()
+
+
+def test_detect_tennis_ball(image_path):
+    # 读取图像
+    frame = cv2.imread(image_path)
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    # 初始化网球检测器
+    tennis_ball_detector = tennis.TennisBallDetector(cache_len=8)
+
+    # 检测网球位置
+    position = tennis_ball_detector.detect_tennis_ball(frame)
+
+    PIL_image = Image.fromarray(frame)
+    # 画出来
+    if position is not None:
+        for pos in position:
+            draw_x = pos[0]
+            draw_y = pos[1]
+            bbox = (draw_x - 2, draw_y - 2, draw_x + 2, draw_y + 2)
+            draw = ImageDraw.Draw(PIL_image)
+            draw.ellipse(bbox, outline='red', fill="blue")
+            del draw
+            break
+
+    PIL_image.show()
+
+
+
+
+
+
 if __name__ == '__main__':
+    # 测试检测球场线
     # test_detect_court(r"./static/video/video_input1.mp4")
+
     # test_detect_player('/aidata/tronevan/Dataset/clips_new/bh-vl-0/IMG_0564(1)_clip_00000_offset-0.2.mp4', '/aidata/mmfuck/mmdeploy/mmdeploy_models/mmdet/rtmdet_tiny_8xb32-300e_coco_fp16/end2end.engine')
+
     # test_track_player('/aidata/mmfuck/short3.mp4', '/aidata/mmfuck/mmdeploy/mmdeploy_models/mmdet/rtmdet_tiny_8xb32-300e_coco_fp16/end2end.engine')
+
     # test_pose_player('/aidata/mmfuck/short3.mp4', '/aidata/mmfuck/mmdeploy/mmdeploy_models/mmdet/rtmdet_tiny_8xb32-300e_coco_fp16/end2end.engine', '/aidata/mmfuck/mmdeploy/mmdeploy_models/mmpose/td-hm_ViTPose-small-simple_8xb64-210e_coco-256x192_fp16/end2end.engine')
-    test_action_player('/aidata/mmfuck/short3.mp4', 
-                       '/aidata/mmfuck/mmdeploy/mmdeploy_models/mmdet/rtmdet_tiny_8xb32-300e_coco_fp16/end2end.engine', 
-                       '/aidata/mmfuck/mmdeploy/mmdeploy_models/mmpose/td-hm_ViTPose-small-simple_8xb64-210e_coco-256x192_fp16/end2end.engine',
-                       '/aidata/mmfuck/action_classify.engine')
+
+    # test_action_player('/aidata/mmfuck/short3.mp4',
+    #                    '/aidata/mmfuck/mmdeploy/mmdeploy_models/mmdet/rtmdet_tiny_8xb32-300e_coco_fp16/end2end.engine',
+    #                    '/aidata/mmfuck/mmdeploy/mmdeploy_models/mmpose/td-hm_ViTPose-small-simple_8xb64-210e_coco-256x192_fp16/end2end.engine',
+    #                    '/aidata/mmfuck/action_classify.engine')
+
+    # 测试检测球
+    test_detect_tennis_ball(r"./static/image/frame_20.jpg")
+

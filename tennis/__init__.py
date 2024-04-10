@@ -7,7 +7,8 @@
 @License  :   (C)Copyright 2024
 """
 from .court_detector import *
-from .player_detector import *
-from .player_tracker import *
-from .player_poser import *
-from .play_action import *
+# from .player_detector import *
+# from .player_tracker import *
+# from .player_poser import *
+# from .play_action import *
+from .tennis_ball_detector import *
