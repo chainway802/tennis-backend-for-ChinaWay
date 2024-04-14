@@ -12,3 +12,8 @@ from .player_tracker import *
 from .player_poser import *
 from .play_action import *
 from .auto_editor import *
+# from .player_detector import *
+# from .player_tracker import *
+# from .player_poser import *
+# from .play_action import *
+from .tennis_ball_detector import *
