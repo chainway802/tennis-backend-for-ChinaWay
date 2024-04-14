@@ -47,7 +47,7 @@ class PlayerDetectionModel(TRTModel):
                                                 thr=racket_thr, label=38, area_sort=racket_area_sort)
         return human_bboxes_post, racket_bboxes_post
     
-    def _post_process(self, det_results, img_shape, max_numbers_by_area, max_numbers, resized_shape=(320, 320), thr=0.4, label=0, area_sort=False):
+    def _post_process(self, det_results, img_shape, max_numbers_by_area=3, max_numbers=2, resized_shape=(320, 320), thr=0.4, label=0, area_sort=False):
         bboxes = det_results['dets'].squeeze()
         labels = np.expand_dims(det_results['labels'].squeeze(), axis=-1)
         bboxes_with_labels = np.concatenate((bboxes, labels), axis=-1)
@@ -61,7 +61,7 @@ class PlayerDetectionModel(TRTModel):
             bboxes_area = (bboxes_with_labels[:, 2] - bboxes_with_labels[:, 0]) * (bboxes_with_labels[:, 3] - bboxes_with_labels[:, 1])
             # 按照面积从大到小排序, 取前max_num_people_by_area个
             bboxes_with_labels = bboxes_with_labels[bboxes_area.argsort()[::-1]][:max_numbers_by_area]
-        bboxes_nms = nms(bboxes_with_labels[:,:5], iou_threshold=0.2, max_numbers=max_numbers)
+        bboxes_nms = nms(bboxes_with_labels[:,:5], iou_threshold=0.35, max_numbers=max_numbers)
         bboxes_post = np.zeros_like(bboxes_nms)
         for i in range(len(bboxes_nms)):
             x1, y1, x2, y2, score= bboxes_nms[i]

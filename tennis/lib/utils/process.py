@@ -428,6 +428,52 @@ def associate_detections_to_trackers(detections,trackers,iou_threshold = 0.2):  
     
     return matches, np.array(unmatched_detections), np.array(unmatched_trackers)  #其中跟踪器数组是5列的（最后一列是ID）
 
+def associate_detections_to_trackers_primary(detections, trackers, iou_threshold=0.2, primary_id=None):
+    """
+    此函数修改以确保primary_id对应的跟踪器首先尝试与检测匹配。
+    """
+    if detections is None:
+        return np.empty((0,2),dtype=int), np.empty((0,5),dtype=int), np.arange(len(trackers))
+    if len(trackers)==0:  #如果跟踪器为空
+        return np.empty((0,2),dtype=int), np.arange(len(detections)), np.empty((0,5),dtype=int)
+
+    iou_matrix = np.zeros((len(detections), len(trackers)), dtype=np.float32)
+    
+    for d, det in enumerate(detections):
+        iou_matrix[d, :] = compute_iou(det, trackers)
+    
+    if primary_id is not None:
+        # 确保primary_id对应的跟踪器存在
+        primary_index = next((i for i, trk in enumerate(trackers) if trk[-1] == primary_id), None)
+        if primary_index is not None:
+            # 对primary_id对应的跟踪器进行特殊处理
+            primary_iou = iou_matrix[:, primary_index].copy()
+            best_det_index = np.argmax(primary_iou)
+            if primary_iou[best_det_index] >= iou_threshold:
+                # 如果找到了满足阈值的最佳匹配，将这个检测从矩阵中移除，避免它被再次匹配
+                iou_matrix[best_det_index, :] = -1
+                iou_matrix[:, primary_index] = -1
+                iou_matrix[best_det_index, primary_index] = primary_iou[best_det_index]
+    
+    matched_indices = linear_sum_assignment(-iou_matrix)
+    matched_indices = np.asarray(matched_indices)
+    matched_indices = np.transpose(matched_indices)
+    
+    matches, unmatched_detections, unmatched_trackers = [], [], []
+    for m in matched_indices:   #遍历粗匹配结果
+        if(iou_matrix[m[0],m[1]]<iou_threshold):   #m[0]是检测器ID， m[1]是跟踪器ID，如它们的IOU小于阈值则将它们视为未匹配成功
+            unmatched_detections.append(m[0])
+            unmatched_trackers.append(m[1])
+        else:
+            matches.append(m.reshape(1,2))          #将过滤后的匹配对维度变形成1x2形式
+    if(len(matches)==0):           #如果过滤后匹配结果为空，那么返回空的匹配结果
+        matches = np.empty((0,2),dtype=int)  
+    else:                          #如果过滤后匹配结果非空，则按0轴方向继续添加匹配对
+        matches = np.concatenate(matches,axis=0)
+    unmatched_detections += [d for d in range(iou_matrix.shape[0]) if d not in matched_indices[:, 0]]
+    unmatched_trackers += [t for t in range(iou_matrix.shape[1]) if t not in matched_indices[:, 1]]
+    
+    return matches, np.array(unmatched_detections), np.array(unmatched_trackers)
 
 '''
 动作分类

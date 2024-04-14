@@ -1,6 +1,6 @@
 from filterpy.kalman import KalmanFilter  #filterpy包含了一些常用滤波器的库
 import numpy as np
-from .lib.utils.process import convert_bbox_to_z, convert_x_to_bbox, associate_detections_to_trackers, compute_iou
+from .lib.utils.process import convert_bbox_to_z, convert_x_to_bbox, associate_detections_to_trackers_primary, compute_iou
 
 __all__ = [
     "SortTracker"
@@ -45,7 +45,7 @@ class KalmanBoxTracker(object):
         self.hit_streak += 1
         self.kf.update(convert_bbox_to_z(bbox))
  
-    def predict(self):
+    def predict(self, max_age):
         """
         Advances the state vector and returns the predicted bounding box estimate.
         """
@@ -53,7 +53,8 @@ class KalmanBoxTracker(object):
             self.kf.x[6] *= 0.0
         self.kf.predict()
         self.age += 1
-        if(self.time_since_update>0):
+        # if(self.time_since_update>0):  #
+        if(self.time_since_update > max_age):  #如果跟踪器未更新的时间超过最大值
             self.hit_streak = 0
         self.time_since_update += 1
         self.history.append(convert_x_to_bbox(self.kf.x))
@@ -66,6 +67,12 @@ class KalmanBoxTracker(object):
         return convert_x_to_bbox(self.kf.x)
 
 class SortTracker(object):
+    '''
+    max_age: 跟踪器未更新的最大帧数
+    min_hits: 跟踪器最小的连续更新帧数
+    resolution: 画面的分辨率
+    primary_id: 运动员跟踪目标的id
+    '''
     def __init__(self, max_age=30, min_hits=3, resolution=(1920,1080)):
         """
         Sets key parameters for SORT
@@ -92,23 +99,27 @@ class SortTracker(object):
         ret = []                                #存放最后返回的结果
         ret_d = []                              #存放匹配成功的检测结果
         for t,trk in enumerate(trks):      #循环遍历卡尔曼跟踪器列表
-            pos = self.trackers[t].predict()[0]           #用卡尔曼跟踪器t 预测 对应物体在当前帧中的bbox
-            trk[:] = [pos[0], pos[1], pos[2], pos[3], 0]
+            pos = self.trackers[t].predict(self.max_age)[0]           #用卡尔曼跟踪器t 预测 对应物体在当前帧中的bbox
+            trk[:] = [pos[0], pos[1], pos[2], pos[3], self.trackers[t].id+1]
             if(np.any(np.isnan(pos))):                     #如果预测的bbox为空，那么将第t个卡尔曼跟踪器删除
                 to_del.append(t)
         trks = np.ma.compress_rows(np.ma.masked_invalid(trks))  #将预测为空的卡尔曼跟踪器所在行删除，最后trks中存放的是上一帧中被跟踪的所有物体在当前帧中预测的非空bbox
         for t in reversed(to_del): #对to_del数组进行倒序遍历
             self.trackers.pop(t)   #从跟踪器中删除 to_del中的上一帧跟踪器ID
 
-        matched, unmatched_dets, unmatched_trks = associate_detections_to_trackers(dets,trks)  #对传入的检测结果 与 上一帧跟踪物体在当前帧中预测的结果做关联，返回匹配的目标矩阵matched, 新增目标的矩阵unmatched_dets, 离开画面的目标矩阵unmatched_trks
+        matched, unmatched_dets, unmatched_trks = associate_detections_to_trackers_primary(dets, trks, 0.2, self.primary_id)  #对传入的检测结果 与 上一帧跟踪物体在当前帧中预测的结果做关联，返回匹配的目标矩阵matched, 新增目标的矩阵unmatched_dets, 离开画面的目标矩阵unmatched_trks
     
         #update matched trackers with assigned detections
         for t,trk in enumerate(self.trackers):    # 对卡尔曼跟踪器做遍历
-            if(t not in unmatched_trks):                   #如果上一帧中的t还在当前帧画面中（即不在当前预测的离开画面的矩阵unmatched_trks中）
+            if (t not in unmatched_trks):                   #如果上一帧中的t还在当前帧画面中（即不在当前预测的离开画面的矩阵unmatched_trks中）
                 d = matched[np.where(matched[:,1]==t)[0],0]  #说明卡尔曼跟踪器t是关联成功的，在matched矩阵中找到与其关联的检测器d
                 ret_d.append(np.concatenate((dets[d,:][0],[trk.id+1])).reshape(1,-1))                              #将关联成功的检测结果d存入ret_d
                 trk.update(dets[d,:][0])                     #用关联的检测结果d来更新卡尔曼跟踪器（即用后验来更新先验）
-          
+            else:
+                if trk.id+1 == self.primary_id:
+                    print('球员未匹配')
+                
+            
         #create and initialise new trackers for unmatched detections  #对于新增的未匹配的检测结果，创建并初始化跟踪器
         for i in unmatched_dets:                  #新增目标
             trk = KalmanBoxTracker(dets[i,:])     #将新增的未匹配的检测结果dets[i,:]传入KalmanBoxTracker
@@ -117,24 +128,24 @@ class SortTracker(object):
         for trk in reversed(self.trackers):       #对新的卡尔曼跟踪器集进行倒序遍历
             d = trk.get_state()[0]                #获取trk跟踪器的状态 [x1,y1,x2,y2] 
             #将d的x1,y1,x2,y2限制在画面内
-            d[0] = max(0, d[0])                   
-            d[1] = max(0, d[1])
-            d[2] = min(self.resolution[0], d[2])
-            d[3] = min(self.resolution[1], d[3])
+            d[0] = np.clip(d[0], 0, self.resolution[0])             
+            d[1] = np.clip(d[1], 0, self.resolution[1])
+            d[2] = np.clip(d[2], 0, self.resolution[0])
+            d[3] = np.clip(d[3], 0, self.resolution[1])
             
             # 找到trk对应的检测结果dets的索引
             if((trk.time_since_update < self.max_age) and (trk.hit_streak >= self.min_hits or self.frame_count <= self.min_hits)):
                 ret.append(np.concatenate((d,[trk.id+1])).reshape(1,-1)) # +1 as MOT benchmark requires positive
             i -= 1
+            
             #remove dead tracklet
             if(trk.time_since_update > self.max_age):
-                # if i == 0:
-                #     print('debug')
                 self.trackers.pop(i)
-        
+                # if trk.id+1 == self.primary_id:
+                    # print('球员离开')
         
                 
-        if(len(ret)>0):
+        if (len(ret)>0):
             ret_trackers = np.array(ret).squeeze(1)
             # 如果primary_id不在trackers中，将其置为None，并重新利用球拍位置确定运动员id
             if  self.primary_id not in ret_trackers[:,4]:
@@ -143,7 +154,10 @@ class SortTracker(object):
                 if (racket_dets is not None) and (len(ret) > 0):
                     racket_iou = compute_iou(racket_dets.squeeze(), ret_trackers)
                     # 取出iou最大的对应的trackers的id
-                    self.primary_id = ret_trackers[np.argmax(racket_iou), 4]
+                    if np.max(racket_iou) > 0:
+                        self.primary_id = ret_trackers[np.argmax(racket_iou), 4]
             return ret_trackers, ret_d, self.primary_id
-        return np.empty((0,5)), np.empty((0,1,5)), None
+        else:
+            # print('无trk')
+            return np.empty((0,5)), np.empty((0,1,5)), None
    

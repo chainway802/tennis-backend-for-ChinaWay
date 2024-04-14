@@ -11,7 +11,14 @@ import numpy as np
 from .TRTModel import TRTModel
 from ..utils.process import keypoint_normalization_within_frame, update_action_counter
 class PlayerActionModel(TRTModel):
-
+    '''
+    kptseq_with_id: 关键点序列
+    actionseq_with_id: 动作序列
+    actioncounter_with_id: 动作计数
+    action_prob_sequences_with_id: 动作概率序列
+    action_timestamps_with_id: 动作时间戳
+    window_size: 窗口大小
+    '''
     def __init__(self, window_size=30):
         super().__init__(max_batch_size=1)
         self.kptseq_with_id = {}
@@ -62,6 +69,7 @@ class PlayerActionModel(TRTModel):
             shot_type1 = np.argmax(clasify_result)
             self.actionseq_with_id[primary_id].append(shot_type1)
         
+        # 更新动作计数
         update_action_counter(self.action_prob_sequences_with_id, self.actioncounter_with_id, 20, self.action_timestamps_with_id, frame_id)
         self._post_process(primary_id)
         return self.actioncounter_with_id, self.action_timestamps_with_id

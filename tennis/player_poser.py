@@ -16,6 +16,9 @@ __all__ = [
 player_pose_model = PlayerPoseEstimationModel()
 
 class PlayerPoser(object):
+    '''
+    channel_convert: 是否将channel维度的顺序调换为(2,1,0)
+    '''
     def __init__(self, engine_path):
         self.channel_convert = True
         player_pose_model.init_model(engine_path)

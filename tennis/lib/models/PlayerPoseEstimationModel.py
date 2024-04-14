@@ -23,7 +23,9 @@ class PlayerPoseEstimationModel(TRTModel):
         x1, y1, x2, y2 = bbox
         # 裁剪图片并进行预处理，推理
         img_crop = frame[int(y1):int(y2), int(x1):int(x2), :]
-        cv2.imwrite("img_crop.jpg", img_crop)
+        print(bbox)
+        print(frame.shape)
+        print(img_crop.shape)
         img_crop = cv2.resize(img_crop, resized_shape).astype(np.float32) #resize后的shape是resized_shape的倒序
         img_crop = np.transpose(img_crop, (2, 0, 1))
         image_channels = img_crop.shape[0]
@@ -41,7 +43,10 @@ class PlayerPoseEstimationModel(TRTModel):
     
     def inference(self, frame, bbox, channel_convert=False):
         x1, y1, x2, y2, _ = bbox
-        x1, y1, x2, y2 = max(0, x1-5), max(0, y1-30), min(frame.shape[1], x2+5), min(frame.shape[0], y2+5)      
+        # 检查bbox合理性
+        x1, y1, x2, y2 = np.clip(x1-5, 0, frame.shape[1]), np.clip(y1-30, 0, frame.shape[0]), np.clip(x2+5, 0, frame.shape[1]), np.clip(y2+5, 0, frame.shape[0])
+        if x1 >= x2 or y1 >= y2:
+            return None
         data_pre = self._pre_process(frame, [x1,y1,x2,y2], channel_convert=channel_convert, resized_shape=self.inputshape[::-1], resolution=frame.shape[:2][::-1])
         pose_results = super().inference(data_pre)
         img_crop_shape = (y2-y1, x2-x1)
