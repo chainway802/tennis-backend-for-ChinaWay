@@ -7,7 +7,7 @@
 @License  :   (C)Copyright 2024
 """
 import cv2
-import argparse
+import yaml
 import torch
 import numpy as np
 
@@ -39,3 +39,9 @@ def get_video_properties(video):
         v_width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
         v_height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
     return fps, length, v_width, v_height
+
+
+def load_yaml_config(file_path):
+    with open(file_path, "r", encoding="utf-8") as f:
+        conf = yaml.safe_load(f)
+    return conf

@@ -1,0 +1,17 @@
+service:
+  kafka:
+    bootstrap_servers: "14.116.187.117:9092"
+    group_id: "video-group"
+    auto_offset_reset: "earliest"
+    video_clip:
+      consumer: "video-clip"
+      producer: "video-clip-task-notification"
+      num_workers: 1
+    AI_coach:
+      consumer: "video-AI-analyze"
+      producer: "video-AI-analyze-task-notification"
+      num_workers: 1
+  thread_pool:
+    max_workers: 10
+
+algorithm:
