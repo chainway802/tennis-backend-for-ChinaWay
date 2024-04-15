@@ -7,7 +7,7 @@
 @License  :   (C)Copyright 2024
 """
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import cv2
 import utils
 import tennis
@@ -15,7 +15,6 @@ import time
 import numpy as np
 import json
 
-ACTION_TYPE = {0:'idle', 1:'forehand', 2:'backhand', 3:'serve'}
 from PIL import Image, ImageDraw
 import matplotlib.pyplot as plt
 
@@ -422,16 +421,12 @@ def test_detect_tennis_ball(image_path):
     position = tennis_ball_detector.detect_tennis_ball(frame)
 
     PIL_image = Image.fromarray(frame)
-    # 画出来
-    if position is not None:
-        for pos in position:
-            draw_x = pos[0]
-            draw_y = pos[1]
-            bbox = (draw_x - 2, draw_y - 2, draw_x + 2, draw_y + 2)
-            draw = ImageDraw.Draw(PIL_image)
-            draw.ellipse(bbox, outline='red', fill="blue")
-            del draw
-            break
+    draw_x = position[1]
+    draw_y = position[0]
+    bbox = (draw_x - 5, draw_y - 5, draw_x + 5, draw_y + 5)
+    draw = ImageDraw.Draw(PIL_image)
+    draw.ellipse(bbox, outline='red', fill="blue")
+    del draw
 
     PIL_image.show()
 
@@ -453,8 +448,10 @@ if __name__ == '__main__':
     #                    '/aidata/mmfuck/mmdeploy/mmdeploy_models/mmdet/rtmdet_tiny_8xb32-300e_coco_fp16/end2end.engine', 
     #                    '/aidata/mmfuck/mmdeploy/mmdeploy_models/mmpose/td-hm_ViTPose-small-simple_8xb64-210e_coco-256x192_fp16/end2end.engine',
     #                    '/aidata/mmfuck/action_classify.engine')
+
     test_detect_tennis_ball(r"./static/image/frame_20.jpg")
-    auto_edit('/aidata/mmfuck/test_video/input/full.mp4', 
-                    '/aidata/mmfuck/mmdeploy/mmdeploy_models/mmdet/rtmdet_tiny_8xb32-300e_coco_fp16/end2end.engine', 
-                    '/aidata/mmfuck/mmdeploy/mmdeploy_models/mmpose/td-hm_ViTPose-small-simple_8xb64-210e_coco-256x192_fp16/end2end.engine',
-                    '/aidata/mmfuck/action_classify.engine')
+
+    # auto_edit('/aidata/mmfuck/test_video/input/full.mp4',
+    #                 '/aidata/mmfuck/mmdeploy/mmdeploy_models/mmdet/rtmdet_tiny_8xb32-300e_coco_fp16/end2end.engine',
+    #                 '/aidata/mmfuck/mmdeploy/mmdeploy_models/mmpose/td-hm_ViTPose-small-simple_8xb64-210e_coco-256x192_fp16/end2end.engine',
+    #                 '/aidata/mmfuck/action_classify.engine')

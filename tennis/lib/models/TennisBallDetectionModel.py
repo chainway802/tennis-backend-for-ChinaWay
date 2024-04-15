@@ -197,18 +197,22 @@ class TennisBallDetectionModel(AbstractModel):
         heatmap = heatmap.astype(np.uint8)
         heatmap = cv2.resize(heatmap, (self.ori_w, self.ori_h), interpolation=cv2.INTER_NEAREST)
         print(self.ori_w, self.ori_h)
-        # 用阈值法将热力图转换成二值图像
-        ret, heatmap = cv2.threshold(heatmap, 127, 255, cv2.THRESH_BINARY)
-        # 找出图像中半径为 2<=radius<=7 的圆
-        circles = cv2.HoughCircles(heatmap, cv2.HOUGH_GRADIENT, dp=1, minDist=1, param1=50, param2=2, minRadius=2, maxRadius=7)
+
+        # # 用阈值法将热力图转换成二值图像
+        # ret, heatmap = cv2.threshold(heatmap, 127, 255, cv2.THRESH_BINARY)
+        # # 找出图像中半径为 2<=radius<=7 的圆
+        # circles = cv2.HoughCircles(heatmap, cv2.HOUGH_GRADIENT, dp=1, minDist=1, param1=50, param2=2, minRadius=2, maxRadius=7)
         # 是否只存在一个圆
         # if len(circles[0]) == 1:
         #     return int(circles[0][0][0]), int(circles[0][0][1])
         # else:
         #     return None
-        print(circles)
+        # print(circles)
 
-        return circles[0]
+        # 求得热度最大的位置
+        position = np.unravel_index(np.argmax(heatmap), heatmap.shape)
+
+        return position
 
     def _read_TRT_file(self, engine_file_path):
         """从已经存在的文件中读取 TRT 模型
