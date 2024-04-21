@@ -16,6 +16,7 @@ import pycuda.autoinit
 from .AbstractModel import AbstractModel
 from ..utils.process import load_tensorrt_plugin
 
+
 class TRTModel(AbstractModel, ABC):
     def __init__(self, max_batch_size=1):
         self._output_names = None

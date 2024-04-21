@@ -9,14 +9,21 @@
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import cv2
-import utils
-import tennis
+import util
+# import tennis
 import time
+import datetime
+import pickle
 import numpy as np
 import json
 
 from PIL import Image, ImageDraw
 import matplotlib.pyplot as plt
+from dataclasses import asdict
+
+from entity.VideoAnalysisEntity import VideoAnalysisEntity
+from entity.VideoAnalyzeItemEntity import VideoAnalyzeItemEntity
+from oss import OSSHelper
 
 ACTION_TYPE = {0: 'idle', 1: 'forehand', 2: 'backhand', 3: 'serve'}
 
@@ -25,7 +32,7 @@ def test_detect_court(video_path):
     # 加载视频
     video = cv2.VideoCapture(video_path)
     # 获取视频属性
-    fps, total_frame_length, w, h = utils.get_video_properties(video)
+    fps, total_frame_length, w, h = util.get_video_properties(video)
     # 初始化球场检测器
     court_detector = tennis.CourtDetector(max_age=40)
 
@@ -72,7 +79,7 @@ def test_detect_player(video_path, engine_path):
     # 加载视频
     video = cv2.VideoCapture(video_path)
     # 获取视频属性
-    fps, total_frame_length, w, h = utils.get_video_properties(video)
+    fps, total_frame_length, w, h = util.get_video_properties(video)
     # 初始化球员检测器
     player_detector = tennis.PlayerDetector(engine_path, human_thr=0.4, racket_thr=0.1)
     # 初始化一些数据
@@ -118,7 +125,7 @@ def test_track_player(video_path, engine_path):
     # 加载视频
     video = cv2.VideoCapture(video_path)
     # 获取视频属性
-    fps, total_frame_length, w, h = utils.get_video_properties(video)
+    fps, total_frame_length, w, h = util.get_video_properties(video)
     # 初始化球员检测器
     player_detector = tennis.PlayerDetector(engine_path, human_thr=0.4, racket_thr=0.1)
     # 初始化球员跟踪器
@@ -166,7 +173,7 @@ def test_pose_player(video_path, det_engine, pose_engine):
     # 加载视频
     video = cv2.VideoCapture(video_path)
     # 获取视频属性
-    fps, total_frame_length, w, h = utils.get_video_properties(video)
+    fps, total_frame_length, w, h = util.get_video_properties(video)
     # 初始化球员检测器
     player_detector = tennis.PlayerDetector(det_engine, human_thr=0.3, racket_thr=0.3, human_area_sort=True)
     # 初始化球员跟踪器
@@ -219,7 +226,7 @@ def test_action_player(video_path, det_engine, pose_engine, action_engine):
     # 加载视频
     video = cv2.VideoCapture(video_path)
     # 获取视频属性
-    fps, total_frame_length, w, h = utils.get_video_properties(video)
+    fps, total_frame_length, w, h = util.get_video_properties(video)
     # 初始化球员检测器
     player_detector = tennis.PlayerDetector(det_engine, human_thr=0.2, racket_thr=0.2, human_max_numbers=6, racket_area_sort=True)
     # 初始化球员跟踪器
@@ -309,7 +316,7 @@ def auto_edit(video_path, det_engine, pose_engine, action_engine):
        # 加载视频
     videof = cv2.VideoCapture(video_path)
     # 获取视频属性
-    fps, video_duration_frames, w, h = utils.get_video_properties(videof)
+    fps, video_duration_frames, w, h = util.get_video_properties(videof)
     
     # 初始化球员检测器
     player_detector = tennis.PlayerDetector(det_engine, human_thr=0.2, racket_thr=0.2, human_max_numbers=6, racket_area_sort=True)
@@ -431,7 +438,32 @@ def test_detect_tennis_ball(image_path):
     PIL_image.show()
 
 
+def test_dataclass():
+    video_analysis = VideoAnalysisEntity(
+        id=1,
+        userId="123",
+        videoName="test_video_name",
+        videoUrl="http://aliyun",
+        funcValue="0",
+        analyzeTime=datetime.datetime.now(),
+        status=200,
+        pinNum=10000,
+        scoreRet="test_score_ret",
+        analyzeItems=[VideoAnalyzeItemEntity(id=1), VideoAnalyzeItemEntity(id=2)]
+    )
+    video_analysis_dict = asdict(video_analysis)
+    print(video_analysis_dict, '\n')
 
+    serialized_data = json.dumps(video_analysis_dict, default=VideoAnalysisEntity.serialize_complex_types).encode('utf-8')
+    print(serialized_data, '\n')
+
+    deserialized_data = json.loads(serialized_data.decode('utf-8'))
+    print(deserialized_data, '\n')
+
+    new_video_analysis = VideoAnalysisEntity(**deserialized_data)
+    print(type(new_video_analysis.analyzeItems[0]))
+    new_video_analysis_dict = asdict(new_video_analysis)
+    print(new_video_analysis_dict, '\n')
 
 
 
@@ -449,9 +481,15 @@ if __name__ == '__main__':
     #                    '/aidata/mmfuck/mmdeploy/mmdeploy_models/mmpose/td-hm_ViTPose-small-simple_8xb64-210e_coco-256x192_fp16/end2end.engine',
     #                    '/aidata/mmfuck/action_classify.engine')
 
-    test_detect_tennis_ball(r"./static/image/frame_20.jpg")
+    # test_detect_tennis_ball(r"./static/image/frame_20.jpg")
 
     # auto_edit('/aidata/mmfuck/test_video/input/full.mp4',
     #                 '/aidata/mmfuck/mmdeploy/mmdeploy_models/mmdet/rtmdet_tiny_8xb32-300e_coco_fp16/end2end.engine',
     #                 '/aidata/mmfuck/mmdeploy/mmdeploy_models/mmpose/td-hm_ViTPose-small-simple_8xb64-210e_coco-256x192_fp16/end2end.engine',
     #                 '/aidata/mmfuck/action_classify.engine')
+
+    # 测试数据实体类的序列化和反序列化
+    test_dataclass()
+
+
+

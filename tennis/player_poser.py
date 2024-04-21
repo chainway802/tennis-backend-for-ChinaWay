@@ -8,6 +8,7 @@
 """
 
 from .lib.models.PlayerPoseEstimationModel import PlayerPoseEstimationModel
+
 # __all__ 的作用是定义了在使用 from xxx import * 时，可以被导入的模块名
 __all__ = [
     "PlayerPoser"
@@ -15,15 +16,16 @@ __all__ = [
 
 player_pose_model = PlayerPoseEstimationModel()
 
+
 class PlayerPoser(object):
     '''
     channel_convert: 是否将channel维度的顺序调换为(2,1,0)
     '''
+
     def __init__(self, engine_path):
         self.channel_convert = True
         player_pose_model.init_model(engine_path)
-        
-        
+
     def detect(self, frame, bbox):
         kpts_post = player_pose_model.inference(frame, bbox, self.channel_convert)
         return kpts_post
