@@ -28,7 +28,7 @@ class AbstractProcessor(ABC):
     _export_func = None  # 下一步处理函数
 
     @abstractmethod
-    def _process(self, message):
+    def _process(self, *args, **kwargs):
         pass
 
     def process(self, message):

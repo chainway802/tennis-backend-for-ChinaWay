@@ -46,7 +46,7 @@ class AbstractExporter(ABC):
         return producer
 
     @abstractmethod
-    def _export(self, value):
+    def _export(self, *args, **kwargs):
         pass
 
     def export(self, value):

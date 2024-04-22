@@ -31,5 +31,5 @@ class AICoachProcessor(AbstractProcessor):
         self._thread_pool = thread_pool  # 处理器全局线程池
         self._export_func = export_func  # 输出器处理函数
 
-    def _process(self, message):
+    def _process(self, message, *args, **kwargs):
         pass

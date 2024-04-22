@@ -35,7 +35,7 @@ class VideoClipExporter(AbstractExporter):
         self._thread_pool = thread_pool  # 输出器全局线程池
         self._oss = oss  # oss服务
 
-    def _export(self, value):
+    def _export(self, value, url, *args, **kwargs):
         # 上传视频
         try:
             processUrl = self._oss.upload_file(value.id, r"./static/video/video_input1.mp4")
