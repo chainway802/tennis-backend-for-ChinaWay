@@ -9,7 +9,6 @@
 import os
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import cv2
 import util
 import tennis
@@ -488,13 +487,13 @@ if __name__ == '__main__':
 
     # test_detect_tennis_ball(r"./static/image/frame_20.jpg")
 
-    auto_edit('/aidata/mmfuck/test_video/input/707b806b3f9548dca14f478cc29d8798/test-001.mp4', 
-                       '/aidata/mmfuck/yolov8_trt_static/yolov8s_FP16.trt', 
-                       '/aidata/mmfuck/ViTPose-Pytorch/models/vitpose_small.engine',
-                       '/aidata/mmfuck/checkpoints/action_classify/action_classify.engine')
+    # auto_edit('/aidata/mmfuck/test_video/input/707b806b3f9548dca14f478cc29d8798/test-001.mp4', 
+    #                    '/aidata/mmfuck/yolov8_trt_static/yolov8s_FP16.trt', 
+    #                    '/aidata/mmfuck/ViTPose-Pytorch/models/vitpose_small.engine',
+    #                    '/aidata/mmfuck/checkpoints/action_classify/action_classify.engine')
     
     # 测试数据实体类的序列化和反序列化
     # test_dataclass()
 
     # 上传本地视频到oss
-    upload_video_to_oss(r"../my-tennis-vision/static/video/video_input2.mp4")
+    upload_video_to_oss(r"/aidata/mmfuck/test_video/input/707b806b3f9548dca14f478cc29d8798/Raw_Video/video40.mp4")
