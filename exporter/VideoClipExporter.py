@@ -7,6 +7,7 @@
 @License  :   (C)Copyright 2024
 """
 from exporter.AbstractExporter import AbstractExporter
+import os
 
 __all__ = [
     "VideoClipExporter"
@@ -35,10 +36,10 @@ class VideoClipExporter(AbstractExporter):
         self._thread_pool = thread_pool  # 输出器全局线程池
         self._oss = oss  # oss服务
 
-    def _export(self, value, url, *args, **kwargs):
+    def _export(self, value, output_path, *args, **kwargs):
         # 上传视频
         try:
-            processUrl = self._oss.upload_file(value.id, r"./static/video/video_input1.mp4")
+            processUrl = self._oss.upload_file(value.id, output_path)
         except:
             print("upload error")
         # 保存剪辑视频地址
@@ -47,3 +48,6 @@ class VideoClipExporter(AbstractExporter):
         # 将结果发送到消息队列
         self._producer.send(self._topic, key=str(value.id).encode('utf-8'), value=value)
         self._producer.flush()
+        
+        # 删除临时文件
+        os.remove(output_path)

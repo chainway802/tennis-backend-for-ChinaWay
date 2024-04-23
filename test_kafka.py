@@ -60,7 +60,7 @@ def app():
 def produce_video_clip_message(producer):
     ind = 1
     while True:
-        video_analysis_entity = VideoAnalysisEntity(id=ind, userId=str(ind))
+        video_analysis_entity = VideoAnalysisEntity(id=ind, userId=str(ind), videoUrl=)
         ind += 1
         producer.send("video-clip", key=str(video_analysis_entity.id).encode('utf-8'), value=video_analysis_entity)
         producer.flush()

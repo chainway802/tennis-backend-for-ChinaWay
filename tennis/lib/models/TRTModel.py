@@ -22,7 +22,7 @@ class TRTModel(AbstractModel, ABC):
         self._output_names = None
         self.output_dims = {}
         self.max_batch_size = max_batch_size
-        load_tensorrt_plugin()
+        # load_tensorrt_plugin() 无第三方算子库，暂且注释掉
 
     def init_model(self, engine_path):
         self.engine_path = engine_path

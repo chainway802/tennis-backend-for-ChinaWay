@@ -7,7 +7,11 @@
 @License  :   (C)Copyright 2024
 """
 from processor.AbstractProcessor import AbstractProcessor
-
+from moviepy.editor import VideoFileClip, concatenate_videoclips
+from util.video_process import VideoLoader
+import tennis
+import time
+import os
 __all__ = [
     "VideoClipProcessor"
 ]
@@ -34,41 +38,58 @@ class VideoClipProcessor(AbstractProcessor):
 
     def _process(self, message, *args, **kwargs):
         print(message)
-        self._export_func(message.value)
-
-
-        # 加载视频
-        video = cv2.VideoCapture(message.value.videoUrl)
-        # 获取视频属性
-        fps, total_frame_length, w, h = util.get_video_properties(video)
-        # 初始化球场检测器
-        court_detector = tennis.CourtDetector(max_age=40)
-
-        # 初始化一些数据
+        # 读取视频, 获得视频信息
+        videof = VideoLoader(message.value.videoUrl)
+        fps, w, h, video_duration_frames = videof.get_video_info()
+        # 初始化算法模型
+        player_detector = tennis.PlayerDetector(human_thr=0.3, racket_thr=0.3, human_area_sort=True)
+        player_tracker = tennis.SortTracker(max_age=30, min_hits=3, resolution=(w, h))
+        player_poser = tennis.PlayerPoser(channel_convert=True)
+        player_action = tennis.PlayerAction()
+        editor = tennis.AutoEditor(video_duration_frames, pre_serve_filter = True, pre_serve_window=120, 
+                 hit_labels=[1,2], serve_label=3, hit_filter=True, hit_minimum_distance=45, hit_isolated_distance=210, 
+                 rally_threshold=180, rally_action_count=3, pre_rally_window=30, post_rally_window=60)
+        # 初始化相关id和序列
+        primary_id = None
         frame_ind = 0
-        new_frames = []
-        # 遍历所有视频帧
+        start = time.time()
+        actioncounter_with_id = None
+        action_timestamps_with_id = None
+        # 遍历检测
         while True:
-            # 读取一帧
-            ret, frame = video.read()
-            frame_ind += 1  # 帧数累计
-
-            # 成功读取帧
-            if ret:
-                # 检测第一帧的场地线
-                if frame_ind == 1:
-                    lines = court_detector.detect_court(frame)
-                else:  # 其他帧跟踪场地线
-                    lines = court_detector.detect_court(frame)
-                # 在当前帧画出场地线
-                for i in range(0, len(lines), 4):
-                    x1, y1, x2, y2 = lines[i:i + 4]
-                    new_frame = cv2.line(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 5)
-                # 缩放图像尺寸
-                new_frame = cv2.resize(new_frame, (w, h))
-                # 将处理后的一帧添加到列表
-                new_frames.append(new_frame)
-            else:  # 视频结尾跳出循环
+            ret, frame = videof.read_frame()
+            if not ret:
                 break
-            # 释放打开的视频
-        video.release()
+            frame_ind += 1
+            human_bboxes, racket_bboxes, ball_bboxes = player_detector.detect(frame)
+            trackers, matched_dets, primary_id = player_tracker.update(human_bboxes, racket_bboxes)
+
+            if trackers is not None and primary_id is not None:
+                player_bbox = trackers[trackers[:, 4] == primary_id].squeeze()
+                kpts = player_poser.detect(frame, player_bbox)
+                if kpts is not None:
+                    actioncounter_with_id, action_timestamps_with_id = player_action.detect(kpts, int(primary_id), frame_ind)
+
+            if frame_ind % 300 == 1 and primary_id is not None and primary_id in actioncounter_with_id:
+                if temp_shot_count == actioncounter_with_id[primary_id]:
+                    primary_id = None
+                else:
+                    temp_shot_count = actioncounter_with_id[primary_id].copy()
+
+        # 剪辑和输出视频
+        output_folder = os.path.join(os.path.dirname(__file__), "temp")
+        if not os.path.exists(output_folder):
+            os.makedirs(output_folder)
+        output_path = os.path.join(output_folder, "temp.mp4")
+        
+        # 获得第一个目标的动作时间戳
+        action_timestamps = action_timestamps_with_id[list(action_timestamps_with_id.keys())[0]]
+        # 获得高质量片段的区间
+        rally_intervals = editor.get_rallys(action_timestamps)
+
+        # 创建视频片段并拼接
+        videof.edit_video(rally_intervals, output_path=output_path)     
+        used_time = time.time() - start
+        message.value.analyzeTime = used_time
+        self._export_func(message.value, output_path)
+

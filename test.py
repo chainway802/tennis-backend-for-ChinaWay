@@ -7,16 +7,16 @@
 @License  :   (C)Copyright 2024
 """
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import cv2
 import util
-# import tennis
+import tennis
 import time
 import datetime
 import pickle
 import numpy as np
 import json
-
+from moviepy.editor import VideoFileClip
 from PIL import Image, ImageDraw
 import matplotlib.pyplot as plt
 from dataclasses import asdict
@@ -169,66 +169,52 @@ def test_track_player(video_path, engine_path):
     output_video.release()
 
 
-def test_pose_player(video_path, det_engine, pose_engine):
-    # 加载视频
-    video = cv2.VideoCapture(video_path)
-    # 获取视频属性
-    fps, total_frame_length, w, h = util.get_video_properties(video)
-    # 初始化球员检测器
-    player_detector = tennis.PlayerDetector(det_engine, human_thr=0.3, racket_thr=0.3, human_area_sort=True)
-    # 初始化球员跟踪器
+def test_pose_player(video_path, det_engine, pose_engine, model_type='YOLO'):
+    # 载入视频，MoviePy 自动处理音频和视频
+    clip = VideoFileClip(video_path)
+    fps = clip.fps  # 帧率
+    w, h = clip.size  # 视频宽高
+
+    player_detector = tennis.PlayerDetector(det_engine, human_thr=0.3, racket_thr=0.3, human_area_sort=True, model_type=model_type)
     player_tracker = tennis.SortTracker(max_age=30, min_hits=3, resolution=(w, h))
-    # 初始化球员姿态器
     player_poser = tennis.PlayerPoser(pose_engine)
-    # 球员id
+
     primary_id = None
     frame_ind = 0
-    new_frames = []
     start = time.time()
-    while True:
-        # 读取一帧
-        ret, frame = video.read()
-        frame_ind += 1  # 帧数累计
-        # 成功读取帧
-        if ret:
-            # 检测球员
-            human_bboxes, racket_bboxes = player_detector.detect(frame)
-            # sort跟踪器更新      
-            trackers, matched_dets, primary_id = player_tracker.update(human_bboxes, racket_bboxes)
+    # 使用 MoviePy 的 fl_image 方法处理视频帧
+    def process_frame(img_np):
+        nonlocal primary_id, frame_ind
+        frame_ind += 1
+        img_np = np.array(img_np, copy=True)
+        human_bboxes, racket_bboxes, ball_bboxes = player_detector.detect(img_np)
+        trackers, matched_dets, primary_id = player_tracker.update(human_bboxes, racket_bboxes)
 
-            if trackers is not None and primary_id is not None:
-                player_bbox = trackers[trackers[:, 4] == primary_id].squeeze()
-                kpts = player_poser.detect(frame, player_bbox)
-                if kpts is not None:
-                    for kpt in kpts:
-                        x, y = kpt
-                        frame = cv2.circle(frame, (int(x), int(y)), 5, (0, 0, 255), -1)
+        if trackers is not None and primary_id is not None:
+            player_bbox = trackers[trackers[:, 4] == primary_id].squeeze()
+            kpts = player_poser.detect(img_np, player_bbox)
+            if kpts is not None:
+                for kpt in kpts:
+                    x, y = kpt
+                    img_np = cv2.circle(img_np, (int(x), int(y)), 5, (255, 0, 0), -1)  # 在图像上绘制关键点
 
-            cv2.imwrite('frame.jpg', frame)
-            new_frames.append(frame)
-        else:  # 视频结尾跳出循环
-            break
+        return img_np
+
+    # 处理视频帧并生成新的视频文件
+    processed_clip = clip.fl_image(process_frame)  # 对每一帧应用上述处理函数
+    processed_clip.write_videofile('/aidata/mmfuck/test_video/output/output_backend_test.mp4', codec='libx264', fps=fps)
+
     print(f"FPS: {frame_ind / (time.time() - start)}")
-    # 释放打开的视频
-    video.release()
-
-    # 初始化输出视频
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    output_video = cv2.VideoWriter('/aidata/mmfuck/output_backend_test.mp4', fourcc, fps, (w, h))
-    # 遍历写入视频
-    for frame in new_frames:
-        output_video.write(frame)
-    # 释放输出的视频
-    output_video.release()
 
 
-def test_action_player(video_path, det_engine, pose_engine, action_engine):
+def test_action_player(video_path, det_engine, pose_engine, action_engine, model_type='rtm'):
     # 加载视频
     video = cv2.VideoCapture(video_path)
     # 获取视频属性
-    fps, total_frame_length, w, h = util.get_video_properties(video)
+    fps = video.get(cv2.CAP_PROP_FPS)
+    w, h = int(video.get(cv2.CAP_PROP_FRAME_WIDTH)), int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
     # 初始化球员检测器
-    player_detector = tennis.PlayerDetector(det_engine, human_thr=0.2, racket_thr=0.2, human_max_numbers=6, racket_area_sort=True)
+    player_detector = tennis.PlayerDetector(det_engine, human_thr=0.2, racket_thr=0.2, human_max_numbers=6, racket_area_sort=True, model_type=model_type)
     # 初始化球员跟踪器
     player_tracker = tennis.SortTracker(max_age=5, min_hits=3, resolution=(w, h))
     # 初始化球员姿态器
@@ -243,7 +229,7 @@ def test_action_player(video_path, det_engine, pose_engine, action_engine):
     start = time.time()
     # 初始化输出视频
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    output_video = cv2.VideoWriter('/aidata/mmfuck/test_video/output/output_backend_test_full.mp4', fourcc, fps, (w, h))
+    output_video = cv2.VideoWriter('/aidata/mmfuck/test_video/output/output_backend_test_match.mp4', fourcc, fps, (w, h))
     while True:
         # 读取一帧
         ret, frame = video.read()
@@ -252,7 +238,7 @@ def test_action_player(video_path, det_engine, pose_engine, action_engine):
         # 成功读取帧
         if ret:
             # 检测球员
-            human_bboxes, racket_bboxes = player_detector.detect(frame)
+            human_bboxes, racket_bboxes, ball_boxes = player_detector.detect(frame)
             # if human_bboxes is not None:
             #     for bbox in human_bboxes:
             #         x1, y1, x2, y2, score = bbox
@@ -266,6 +252,7 @@ def test_action_player(video_path, det_engine, pose_engine, action_engine):
                 print('primary_id None')
             if trackers is not None and primary_id is not None:
                 player_bbox = trackers[trackers[:,4] == primary_id].squeeze()
+                x1, y1, x2, y2, score = player_bbox 
                 # cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 55, 0), 2)
                 kpts = player_poser.detect(frame, player_bbox)
                 if kpts is not None:
@@ -281,27 +268,28 @@ def test_action_player(video_path, det_engine, pose_engine, action_engine):
                         cv2.rectangle(frame, (900, 300), (900 + text_width + 20, 300 + text_height + 20), (186,196,206), -1)
                         cv2.putText(frame, count_text, (900, 300+25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (1,31,32), 2)
                 trackers = trackers[trackers[:,4] == primary_id]
+                cv2.imwrite('frame.jpg', frame)
             # 每隔300帧，检查primary_id对应的action_counter是否有更新：
-            if frame_ind % 300 == 1 and primary_id is not None and primary_id in actioncounter_with_id:
-                if temp_shot_count == actioncounter_with_id[primary_id]:
-                    primary_id = None
-                else:
-                    temp_shot_count = actioncounter_with_id[primary_id].copy()
+            # if frame_ind % 300 == 1 and primary_id is not None and primary_id in actioncounter_with_id:
+            #     if temp_shot_count == actioncounter_with_id[primary_id]:
+            #         primary_id = None
+            #     else:
+            #         temp_shot_count = actioncounter_with_id[primary_id].copy()
 
-            output_video.write(frame)    
+            # output_video.write(frame)    
             
             # cv2.imwrite('frame.jpg', frame)
             # new_frames.append(frame)
         else:  # 视频结尾跳出循环
             break
     print(f"FPS: {frame_ind / (time.time() - start)}")
-    print(action_timestamps_with_id)
-    # 保存动作时间戳
-    with open('action_timestamps_full.json', 'w') as f:
-        json.dump(action_timestamps_with_id, f)
+    # print(action_timestamps_with_id)
+    # # 保存动作时间戳
+    # with open('action_timestamps_match.json', 'w') as f:
+    #     json.dump(action_timestamps_with_id, f)
         
-    with open('action_counter_full.json', 'w') as f:
-        json.dump(actioncounter_with_id, f)
+    # with open('action_counter_match.json', 'w') as f:
+    #     json.dump(actioncounter_with_id, f)
     # 释放打开的视频
     video.release()
 
@@ -313,19 +301,21 @@ def test_action_player(video_path, det_engine, pose_engine, action_engine):
     output_video.release()
 
 def auto_edit(video_path, det_engine, pose_engine, action_engine):
-       # 加载视频
+    # 加载视频
     videof = cv2.VideoCapture(video_path)
     # 获取视频属性
-    fps, video_duration_frames, w, h = util.get_video_properties(videof)
+    fps = videof.get(cv2.CAP_PROP_FPS)
+    w, h = int(videof.get(cv2.CAP_PROP_FRAME_WIDTH)), int(videof.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    video_duration_frames = int(videof.get(cv2.CAP_PROP_FRAME_COUNT))
     
     # 初始化球员检测器
-    player_detector = tennis.PlayerDetector(det_engine, human_thr=0.2, racket_thr=0.2, human_max_numbers=6, racket_area_sort=True)
+    player_detector = tennis.PlayerDetector(human_thr=0.2, racket_thr=0.2, human_max_numbers=6, racket_area_sort=True)
     # 初始化球员跟踪器
     player_tracker = tennis.SortTracker(max_age=5, min_hits=3, resolution=(w, h))
     # 初始化球员姿态器
-    player_poser = tennis.PlayerPoser(pose_engine)
+    player_poser = tennis.PlayerPoser(channel_convert=True)
     # 初始化球员动作识别器
-    player_action = tennis.PlayerAction(action_engine)
+    player_action = tennis.PlayerAction()
     # 初始化自动剪辑器
     editor = tennis.AutoEditor(video_duration_frames, pre_serve_filter = True, pre_serve_window=120, 
                  hit_labels=['1','2'], serve_label='3', hit_filter=True, hit_minimum_distance=45, hit_isolated_distance=210, 
@@ -344,7 +334,7 @@ def auto_edit(video_path, det_engine, pose_engine, action_engine):
         # 成功读取帧
         if ret:
             # 检测球员
-            human_bboxes, racket_bboxes = player_detector.detect(frame)
+            human_bboxes, racket_bboxes, ball_bboxes = player_detector.detect(frame)
             # sort跟踪器更新      
             trackers, matched_dets, primary_id = player_tracker.update(human_bboxes, racket_bboxes) 
             if primary_id is None:
@@ -475,21 +465,21 @@ if __name__ == '__main__':
 
     # test_track_player('/aidata/mmfuck/short3.mp4', '/aidata/mmfuck/mmdeploy/mmdeploy_models/mmdet/rtmdet_tiny_8xb32-300e_coco_fp16/end2end.engine')
 
-    # test_pose_player('/aidata/mmfuck/short3.mp4', '/aidata/mmfuck/mmdeploy/mmdeploy_models/mmdet/rtmdet_tiny_8xb32-300e_coco_fp16/end2end.engine', '/aidata/mmfuck/mmdeploy/mmdeploy_models/mmpose/td-hm_ViTPose-small-simple_8xb64-210e_coco-256x192_fp16/end2end.engine')
-    # test_action_player('/aidata/mmfuck/test_video/input/full.mp4', 
-    #                    '/aidata/mmfuck/mmdeploy/mmdeploy_models/mmdet/rtmdet_tiny_8xb32-300e_coco_fp16/end2end.engine', 
-    #                    '/aidata/mmfuck/mmdeploy/mmdeploy_models/mmpose/td-hm_ViTPose-small-simple_8xb64-210e_coco-256x192_fp16/end2end.engine',
-    #                    '/aidata/mmfuck/action_classify.engine')
+    # test_pose_player('/aidata/mmfuck/test_video/input/707b806b3f9548dca14f478cc29d8798/test-001.mp4', '/aidata/mmfuck/yolov8_trt_static/yolov8s_FP16.trt', '/aidata/mmfuck/ViTPose-Pytorch/models/vitpose_small.engine')
+    # test_action_player('/aidata/mmfuck/test_video/input/707b806b3f9548dca14f478cc29d8798/test-001.mp4', 
+    #                    '/aidata/mmfuck/yolov8_trt_static/yolov8s_FP16.trt', 
+    #                    '/aidata/mmfuck/ViTPose-Pytorch/models/vitpose_small.engine',
+    #                    '/aidata/mmfuck/checkpoints/action_classify/action_classify.engine', 'YOLO')
 
     # test_detect_tennis_ball(r"./static/image/frame_20.jpg")
 
-    # auto_edit('/aidata/mmfuck/test_video/input/full.mp4',
-    #                 '/aidata/mmfuck/mmdeploy/mmdeploy_models/mmdet/rtmdet_tiny_8xb32-300e_coco_fp16/end2end.engine',
-    #                 '/aidata/mmfuck/mmdeploy/mmdeploy_models/mmpose/td-hm_ViTPose-small-simple_8xb64-210e_coco-256x192_fp16/end2end.engine',
-    #                 '/aidata/mmfuck/action_classify.engine')
-
+    auto_edit('/aidata/mmfuck/test_video/input/707b806b3f9548dca14f478cc29d8798/test-001.mp4', 
+                       '/aidata/mmfuck/yolov8_trt_static/yolov8s_FP16.trt', 
+                       '/aidata/mmfuck/ViTPose-Pytorch/models/vitpose_small.engine',
+                       '/aidata/mmfuck/checkpoints/action_classify/action_classify.engine')
+    
     # 测试数据实体类的序列化和反序列化
-    test_dataclass()
+    # test_dataclass()
 
 
 

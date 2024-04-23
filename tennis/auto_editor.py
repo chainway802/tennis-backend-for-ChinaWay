@@ -52,6 +52,10 @@ class AutoEditor(object):
         '''
         过滤掉发球前的帧数窗口
         '''    
+        # 检查serve_label是否在action_timestamps中
+        if self.serve_label not in list(action_timestamps.keys()):
+            return action_timestamps
+
         action_timestamps_sf = action_timestamps.copy()
         # 遍历每个发球动作的起始时间
         for serve_start, serve_end in action_timestamps[self.serve_label]:
@@ -79,7 +83,8 @@ class AutoEditor(object):
         action_intervals = []
         action_labels = self.hit_labels + [self.serve_label]
         for label in action_labels:
-            action_intervals += action_timestamps[label]
+            if label in list(action_timestamps.keys()):
+                action_intervals += action_timestamps[label]
         action_intervals = sorted(action_intervals, key = lambda x:x[0])
         # 找出与前后两次动作起始时间间隔45-300帧的动作时间区间
         for i, interval in enumerate(action_intervals):
@@ -91,6 +96,8 @@ class AutoEditor(object):
                     self.filtered_intervals.append(interval)
 
         for action_type in self.hit_labels:
+            if action_type not in list(action_timestamps.keys()):
+                continue
             new_intervals = [interval for interval in action_timestamps[action_type] if interval not in self.filtered_intervals]
             action_timestamps_hf[action_type] = new_intervals
 
@@ -104,10 +111,13 @@ class AutoEditor(object):
 
         # 去除被过滤的动作
         for action_type in self.hit_labels:
+            if action_type not in list(action_timestamps.keys()):
+                continue
             new_intervals = [interval for interval in action_timestamps_hf[action_type] if interval not in self.filtered_intervals]
             action_timestamps_hf[action_type] = new_intervals
             
         return action_timestamps_hf
+    
     def get_rallys(self, action_timestamps):
         '''
         获取回合时间区间
@@ -121,14 +131,17 @@ class AutoEditor(object):
         action_intervals = []
         action_labels = self.hit_labels + [self.serve_label]
         for label in action_labels:
-            action_intervals += action_timestamps[label]
+            if label in list(action_timestamps.keys()):
+                action_intervals += action_timestamps[label]
+                
+        if len(action_intervals) == 0:
+            return None
+        
         # 按开始时间排序
         action_intervals = sorted(action_intervals, key = lambda x:x[0])
-
         # 初始化回合列表
-        rounds = []
+        rounds = [] 
         current_round = [action_intervals[0]]
-
         for i in range(1, len(action_intervals)):
             previous_interval = current_round[-1]
             current_interval = action_intervals[i]
