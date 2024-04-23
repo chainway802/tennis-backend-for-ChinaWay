@@ -7,6 +7,7 @@
 @License  :   (C)Copyright 2024
 """
 import os
+
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import cv2
 import util
@@ -16,6 +17,7 @@ import datetime
 import pickle
 import numpy as np
 import json
+import uuid
 
 from PIL import Image, ImageDraw
 import matplotlib.pyplot as plt
@@ -261,11 +263,11 @@ def test_action_player(video_path, det_engine, pose_engine, action_engine):
             # else:
             #     print('没有目标')
             # sort跟踪器更新      
-            trackers, matched_dets, primary_id = player_tracker.update(human_bboxes, racket_bboxes) 
+            trackers, matched_dets, primary_id = player_tracker.update(human_bboxes, racket_bboxes)
             if primary_id is None:
                 print('primary_id None')
             if trackers is not None and primary_id is not None:
-                player_bbox = trackers[trackers[:,4] == primary_id].squeeze()
+                player_bbox = trackers[trackers[:, 4] == primary_id].squeeze()
                 # cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 55, 0), 2)
                 kpts = player_poser.detect(frame, player_bbox)
                 if kpts is not None:
@@ -278,9 +280,9 @@ def test_action_player(video_path, det_engine, pose_engine, action_engine):
                         # 首先计算文本框大小
                         (text_width, text_height), _ = cv2.getTextSize(count_text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 1)
                         # 在文本下方绘制填充矩形作为背景,每个id的文本框高度为40，宽度为文本宽度+20,竖直间距为10 
-                        cv2.rectangle(frame, (900, 300), (900 + text_width + 20, 300 + text_height + 20), (186,196,206), -1)
-                        cv2.putText(frame, count_text, (900, 300+25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (1,31,32), 2)
-                trackers = trackers[trackers[:,4] == primary_id]
+                        cv2.rectangle(frame, (900, 300), (900 + text_width + 20, 300 + text_height + 20), (186, 196, 206), -1)
+                        cv2.putText(frame, count_text, (900, 300 + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (1, 31, 32), 2)
+                trackers = trackers[trackers[:, 4] == primary_id]
             # 每隔300帧，检查primary_id对应的action_counter是否有更新：
             if frame_ind % 300 == 1 and primary_id is not None and primary_id in actioncounter_with_id:
                 if temp_shot_count == actioncounter_with_id[primary_id]:
@@ -288,8 +290,8 @@ def test_action_player(video_path, det_engine, pose_engine, action_engine):
                 else:
                     temp_shot_count = actioncounter_with_id[primary_id].copy()
 
-            output_video.write(frame)    
-            
+            output_video.write(frame)
+
             # cv2.imwrite('frame.jpg', frame)
             # new_frames.append(frame)
         else:  # 视频结尾跳出循环
@@ -299,12 +301,11 @@ def test_action_player(video_path, det_engine, pose_engine, action_engine):
     # 保存动作时间戳
     with open('action_timestamps_full.json', 'w') as f:
         json.dump(action_timestamps_with_id, f)
-        
+
     with open('action_counter_full.json', 'w') as f:
         json.dump(actioncounter_with_id, f)
     # 释放打开的视频
     video.release()
-
 
     # 遍历写入视频
     for frame in new_frames:
@@ -312,12 +313,13 @@ def test_action_player(video_path, det_engine, pose_engine, action_engine):
     # 释放输出的视频
     output_video.release()
 
+
 def auto_edit(video_path, det_engine, pose_engine, action_engine):
-       # 加载视频
+    # 加载视频
     videof = cv2.VideoCapture(video_path)
     # 获取视频属性
     fps, video_duration_frames, w, h = util.get_video_properties(videof)
-    
+
     # 初始化球员检测器
     player_detector = tennis.PlayerDetector(det_engine, human_thr=0.2, racket_thr=0.2, human_max_numbers=6, racket_area_sort=True)
     # 初始化球员跟踪器
@@ -327,9 +329,9 @@ def auto_edit(video_path, det_engine, pose_engine, action_engine):
     # 初始化球员动作识别器
     player_action = tennis.PlayerAction(action_engine)
     # 初始化自动剪辑器
-    editor = tennis.AutoEditor(video_duration_frames, pre_serve_filter = True, pre_serve_window=120, 
-                 hit_labels=['1','2'], serve_label='3', hit_filter=True, hit_minimum_distance=45, hit_isolated_distance=210, 
-                 rally_threshold=180, rally_action_count=3, pre_rally_window=30, post_rally_window=60)
+    editor = tennis.AutoEditor(video_duration_frames, pre_serve_filter=True, pre_serve_window=120,
+                               hit_labels=['1', '2'], serve_label='3', hit_filter=True, hit_minimum_distance=45, hit_isolated_distance=210,
+                               rally_threshold=180, rally_action_count=3, pre_rally_window=30, post_rally_window=60)
     # 球员id
     primary_id = None
     frame_ind = 0
@@ -346,12 +348,12 @@ def auto_edit(video_path, det_engine, pose_engine, action_engine):
             # 检测球员
             human_bboxes, racket_bboxes = player_detector.detect(frame)
             # sort跟踪器更新      
-            trackers, matched_dets, primary_id = player_tracker.update(human_bboxes, racket_bboxes) 
+            trackers, matched_dets, primary_id = player_tracker.update(human_bboxes, racket_bboxes)
             if primary_id is None:
                 print('primary_id None')
             if trackers is not None and primary_id is not None:
-                player_bbox = trackers[trackers[:,4] == primary_id].squeeze()
-                x1, y1, x2, y2, score = player_bbox 
+                player_bbox = trackers[trackers[:, 4] == primary_id].squeeze()
+                x1, y1, x2, y2, score = player_bbox
                 # cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 55, 0), 2)
                 kpts = player_poser.detect(frame, player_bbox)
                 if kpts is not None:
@@ -364,9 +366,9 @@ def auto_edit(video_path, det_engine, pose_engine, action_engine):
                         # 首先计算文本框大小
                         (text_width, text_height), _ = cv2.getTextSize(count_text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 1)
                         # 在文本下方绘制填充矩形作为背景,每个id的文本框高度为40，宽度为文本宽度+20,竖直间距为10 
-                        cv2.rectangle(frame, (900, 300), (900 + text_width + 20, 300 + text_height + 20), (186,196,206), -1)
-                        cv2.putText(frame, count_text, (900, 300+25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (1,31,32), 2)
-                trackers = trackers[trackers[:,4] == primary_id]
+                        cv2.rectangle(frame, (900, 300), (900 + text_width + 20, 300 + text_height + 20), (186, 196, 206), -1)
+                        cv2.putText(frame, count_text, (900, 300 + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (1, 31, 32), 2)
+                trackers = trackers[trackers[:, 4] == primary_id]
             # 每隔300帧，检查primary_id对应的action_counter是否有更新：
             if frame_ind % 300 == 1 and primary_id is not None and primary_id in actioncounter_with_id:
                 if temp_shot_count == actioncounter_with_id[primary_id]:
@@ -388,8 +390,7 @@ def auto_edit(video_path, det_engine, pose_engine, action_engine):
     current_segment_index = 0
     current_frame_index = 1
 
-        
-    output = cv2.VideoWriter(os.path.join(output_path, 'clips_0.mp4'), cv2.VideoWriter_fourcc(*'mp4v'), fps, (w,h))
+    output = cv2.VideoWriter(os.path.join(output_path, 'clips_0.mp4'), cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
     while videof.isOpened() and current_segment_index < len(rally_intervals):
         ret, frame = videof.read()
         print(current_frame_index)
@@ -401,21 +402,21 @@ def auto_edit(video_path, det_engine, pose_engine, action_engine):
         if start_frame <= current_frame_index <= end_frame:
             # frame = cv2.resize(frame, )
             output.write(frame)
-        
+
         # 如果当前帧达到了当前片段的结束帧，则移动到下一个片段
         if current_frame_index == end_frame:
             current_segment_index += 1
             output.release()
             if current_segment_index < len(rally_intervals):
                 output = cv2.VideoWriter(os.path.join(output_path, f'clips_{current_segment_index}.mp4'), cv2.VideoWriter_fourcc(*'MP4V'), fps, (w, h))
-            
-            
+
         current_frame_index += 1
-        
+
     # 释放资源
     videof.release()
     output.release()
-    cv2.destroyAllWindows() 
+    cv2.destroyAllWindows()
+
 
 def test_detect_tennis_ball(image_path):
     # 读取图像
@@ -466,6 +467,20 @@ def test_dataclass():
     print(new_video_analysis_dict, '\n')
 
 
+def upload_video_to_oss(video_path):
+    # 先解析配置文件
+    conf = util.load_yaml_config(r"./config/config.yaml")
+    # 初始化oss服务
+    oss = OSSHelper(**conf["oss"])
+    # 计算视频名称的uuid
+    video_uuid = uuid.uuid4()
+    # 上传视频
+    try:
+        processUrl = oss.upload_file(video_uuid, video_path)
+        print(processUrl)
+    except Exception as e:
+        print("upload error: ", e)
+
 
 if __name__ == '__main__':
     # 测试检测球场线
@@ -489,7 +504,7 @@ if __name__ == '__main__':
     #                 '/aidata/mmfuck/action_classify.engine')
 
     # 测试数据实体类的序列化和反序列化
-    test_dataclass()
+    # test_dataclass()
 
-
-
+    # 上传本地视频到oss
+    upload_video_to_oss(r"../my-tennis-vision/static/video/video_input2.mp4")
