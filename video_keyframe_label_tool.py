@@ -406,7 +406,7 @@ class VideoKeyFrameEventAnnotator(object):
         if video_annotate_json_file_path is None:
             return
         # 将字典写入到JSON文件
-        with open(video_annotate_json_file_path, 'w') as f:
+        with open(video_annotate_json_file_path, 'w', encoding='utf-8') as f:
             json.dump(annotate_dict, f, indent=4)  # 使用indent参数使输出的JSON文件格式化，便于阅读
 
     def write_json_file(self, write_json_file_queue, annotate_dict_lock):
@@ -420,8 +420,10 @@ class VideoKeyFrameEventAnnotator(object):
     def _load_json_file(video_annotate_json_file_path):
         if video_annotate_json_file_path is not None and os.path.isfile(video_annotate_json_file_path):
             # 从JSON文件读取数据
-            with open(video_annotate_json_file_path, 'r') as f:
-                return json.load(f)
+            with open(video_annotate_json_file_path, 'r', encoding='utf-8') as f:
+                annotate_dict = json.load(f)
+                annotate_dict = {int(key): value for key, value in annotate_dict.items()}
+                return annotate_dict
         else:
             return None
 
