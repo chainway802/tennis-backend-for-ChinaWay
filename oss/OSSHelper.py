@@ -9,6 +9,7 @@
 import os
 import time
 import oss2
+import uuid
 
 
 __all__ = [
@@ -54,8 +55,24 @@ class OSSHelper(object):
 
         return "https://" + self.bucket_name + "." + self.OSS_DOMAIN + "/" + object_file_name
 
-    def download_file(self):
-        pass
+    def download_file(self, object_file_url):
+        """
+        下载文件到本地
+
+        :param object_file_url: oss对象文件url
+        :return: 本地文件地址
+        """
+        # 计算本地临时缓存文件名称
+        local_file_name = str(uuid.uuid4())
+        # 获取本地临时缓存文件路径
+        local_file_path = os.path.join(r"./temp", local_file_name + ".mp4")
+        # 计算oss文件存储路径
+        object_file_path = object_file_url.split(self.OSS_DOMAIN)[1][1:]
+
+        # 下载文件到本地
+        self.bucket.get_object_to_file(object_file_path, local_file_path)
+
+        return local_file_path
 
     def delete_file(self):
         pass
