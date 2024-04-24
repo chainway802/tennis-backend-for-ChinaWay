@@ -219,8 +219,6 @@ class PlayerPoseEstimationModel(AbstractModel):
             x = x * scale * img_crop_shape[1]/resized_shape[1] + bbox_xy1[0]
             y = y * scale * img_crop_shape[0]/resized_shape[0] + bbox_xy1[1]
             kpts_post = np.stack((x, y), axis=-1)
-
-            print("球员姿态检测模型后处理")
             return kpts_post
 
     def _read_TRT_file(self, engine_file_path):
@@ -358,3 +356,13 @@ class PlayerPoseEstimationModel(AbstractModel):
         print("onnx转trt成功，序列化engine文件保存在:{}".format(engine_file_path))
 
         return engine
+
+    def __del__(self):
+        # 清理资源
+        self.context = None
+        if self.engine is not None:
+            self.engine = None
+        if self.cfx:
+            self.cfx.pop()  # 确保弹出上下文
+            self.cfx.detach()  # 分离所有资源（如果在CUDA文档中推荐）
+            self.cfx = None

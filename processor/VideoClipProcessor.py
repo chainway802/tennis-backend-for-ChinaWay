@@ -12,6 +12,7 @@ from util.video_process import VideoLoader
 import tennis
 import time
 import os
+import cv2
 __all__ = [
     "VideoClipProcessor"
 ]
@@ -55,21 +56,28 @@ class VideoClipProcessor(AbstractProcessor):
         start = time.time()
         actioncounter_with_id = None
         action_timestamps_with_id = None
+        # cap = cv2.VideoCapture(message.value.videoUrl)
         # 遍历检测
         while True:
+            t1 = time.time()
             ret, frame = videof.read_frame()
+            print('read time:', time.time() - t1)
             if not ret:
                 break
             frame_ind += 1
+            print(frame_ind)
             human_bboxes, racket_bboxes, ball_bboxes = player_detector.detect(frame)
             trackers, matched_dets, primary_id = player_tracker.update(human_bboxes, racket_bboxes)
-
+            
+            t2 = time.time()
             if trackers is not None and primary_id is not None:
                 player_bbox = trackers[trackers[:, 4] == primary_id].squeeze()
                 kpts = player_poser.detect(frame, player_bbox)
+                print('pose time:', time.time() - t2)
+                t3 = time.time()
                 if kpts is not None:
                     actioncounter_with_id, action_timestamps_with_id = player_action.detect(kpts, int(primary_id), frame_ind)
-
+                print('action time:', time.time() - t3)
             if frame_ind % 300 == 1 and primary_id is not None and primary_id in actioncounter_with_id:
                 if temp_shot_count == actioncounter_with_id[primary_id]:
                     primary_id = None

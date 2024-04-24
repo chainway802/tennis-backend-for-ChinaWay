@@ -8,7 +8,7 @@
 """
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import cv2
 import util
 import tennis
@@ -350,13 +350,13 @@ def auto_edit(video_path, det_engine, pose_engine, action_engine):
                         x, y = kpt
                         frame = cv2.circle(frame, (int(x), int(y)), 5, (0, 0, 255), -1)
                     actioncounter_with_id, action_timestamps_with_id = player_action.detect(kpts, int(primary_id), frame_ind)
-                    for id in actioncounter_with_id:
-                        count_text = f'player_{id}:' + " | ".join([f"{ACTION_TYPE[action]}: {count}" for action, count in actioncounter_with_id[id].items() if action != 0])
-                        # 首先计算文本框大小
-                        (text_width, text_height), _ = cv2.getTextSize(count_text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 1)
-                        # 在文本下方绘制填充矩形作为背景,每个id的文本框高度为40，宽度为文本宽度+20,竖直间距为10 
-                        cv2.rectangle(frame, (900, 300), (900 + text_width + 20, 300 + text_height + 20), (186, 196, 206), -1)
-                        cv2.putText(frame, count_text, (900, 300 + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (1, 31, 32), 2)
+                    # for id in actioncounter_with_id:
+                    #     count_text = f'player_{id}:' + " | ".join([f"{ACTION_TYPE[action]}: {count}" for action, count in actioncounter_with_id[id].items() if action != 0])
+                    #     # 首先计算文本框大小
+                    #     (text_width, text_height), _ = cv2.getTextSize(count_text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 1)
+                    #     # 在文本下方绘制填充矩形作为背景,每个id的文本框高度为40，宽度为文本宽度+20,竖直间距为10 
+                    #     cv2.rectangle(frame, (900, 300), (900 + text_width + 20, 300 + text_height + 20), (186, 196, 206), -1)
+                    #     cv2.putText(frame, count_text, (900, 300 + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (1, 31, 32), 2)
                 trackers = trackers[trackers[:, 4] == primary_id]
             # 每隔300帧，检查primary_id对应的action_counter是否有更新：
             if frame_ind % 300 == 1 and primary_id is not None and primary_id in actioncounter_with_id:
@@ -487,13 +487,13 @@ if __name__ == '__main__':
 
     # test_detect_tennis_ball(r"./static/image/frame_20.jpg")
 
-    # auto_edit('/aidata/mmfuck/test_video/input/707b806b3f9548dca14f478cc29d8798/test-001.mp4', 
-    #                    '/aidata/mmfuck/yolov8_trt_static/yolov8s_FP16.trt', 
-    #                    '/aidata/mmfuck/ViTPose-Pytorch/models/vitpose_small.engine',
-    #                    '/aidata/mmfuck/checkpoints/action_classify/action_classify.engine')
+    auto_edit('/aidata/mmfuck/test_video/input/707b806b3f9548dca14f478cc29d8798/test-001.mp4', 
+                       '/aidata/mmfuck/yolov8_trt_static/yolov8s_FP16.trt', 
+                       '/aidata/mmfuck/ViTPose-Pytorch/models/vitpose_small.engine',
+                       '/aidata/mmfuck/checkpoints/action_classify/action_classify.engine')
     
     # 测试数据实体类的序列化和反序列化
     # test_dataclass()
 
     # 上传本地视频到oss
-    upload_video_to_oss(r"/aidata/mmfuck/test_video/input/707b806b3f9548dca14f478cc29d8798/Raw_Video/video40.mp4")
+    # upload_video_to_oss(r"/aidata/mmfuck/test_video/input/707b806b3f9548dca14f478cc29d8798/Raw_Video/video40.mp4")

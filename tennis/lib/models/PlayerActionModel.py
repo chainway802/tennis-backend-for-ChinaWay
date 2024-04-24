@@ -358,3 +358,13 @@ class PlayerActionModel(AbstractModel):
         print("onnx转trt成功，序列化engine文件保存在:{}".format(engine_file_path))
 
         return engine
+
+    def __del__(self):
+        # 清理资源
+        self.context = None
+        if self.engine is not None:
+            self.engine = None
+        if self.cfx:
+            self.cfx.pop()  # 确保弹出上下文
+            self.cfx.detach()  # 分离所有资源（如果在CUDA文档中推荐）
+            self.cfx = None

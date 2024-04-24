@@ -8,19 +8,10 @@
 """
 import cv2
 import yaml
-import torch
 import numpy as np
 
 
-def get_dtype():
-    dev = 'cuda' if torch.cuda.is_available() else 'cpu'
-    device = torch.device(dev)
-    if dev == 'cuda':
-        dtype = torch.cuda.FloatTensor
-    else:
-        dtype = torch.FloatTensor
-    print(f'Using device {device}')
-    return dtype
+
 
 
 def get_video_properties(video):
