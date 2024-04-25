@@ -7,12 +7,16 @@
 @License  :   (C)Copyright 2024
 """
 from processor.AbstractProcessor import AbstractProcessor
-from moviepy.editor import VideoFileClip, concatenate_videoclips
 from util.video_process import VideoLoader
-import tennis
+from oss.OSSHelper import OSSHelper
+from util.io import load_yaml_config
+from tennis.player_detector import PlayerDetector
+from tennis.player_tracker import SortTracker
+from tennis.player_poser import PlayerPoser
+from tennis.play_action import PlayerAction
+from tennis.auto_editor import AutoEditor
 import time
 import os
-import cv2
 __all__ = [
     "VideoClipProcessor"
 ]
@@ -35,19 +39,22 @@ class VideoClipProcessor(AbstractProcessor):
         self._logger = logger  # 日志器
         self._thread_pool = thread_pool  # 处理器全局线程池
         self._export_func = export_func  # 输出器处理函数
-
+        self.conf = load_yaml_config(r"./config/config.yaml")
+        self._oss = OSSHelper(**self.conf["oss"])
+        self.local_file_path = None
 
     def _process(self, message, *args, **kwargs):
         print(message)
         # 读取视频, 获得视频信息
-        videof = VideoLoader(message.value.videoUrl)
+        # self.local_file_path = self._oss.download_file(message.value.videoUrl)
+        videof = VideoLoader('/aidata/mmfuck/tennis-backend-new/tennis-backend/temp/65b808b6-8015-4c79-bd4e-d7302c909502.mp4')
         fps, w, h, video_duration_frames = videof.get_video_info()
         # 初始化算法模型
-        player_detector = tennis.PlayerDetector(human_thr=0.3, racket_thr=0.3, human_area_sort=True)
-        player_tracker = tennis.SortTracker(max_age=30, min_hits=3, resolution=(w, h))
-        player_poser = tennis.PlayerPoser(channel_convert=True)
-        player_action = tennis.PlayerAction()
-        editor = tennis.AutoEditor(video_duration_frames, pre_serve_filter = True, pre_serve_window=120, 
+        player_detector = PlayerDetector(human_thr=0.5, racket_thr=0.3, human_area_sort=True)
+        player_tracker = SortTracker(max_age=30, min_hits=3, resolution=(w, h))
+        player_poser = PlayerPoser(channel_convert=True)
+        player_action = PlayerAction()
+        editor = AutoEditor(video_duration_frames, pre_serve_filter = True, pre_serve_window=120, 
                  hit_labels=[1,2], serve_label=3, hit_filter=True, hit_minimum_distance=45, hit_isolated_distance=210, 
                  rally_threshold=180, rally_action_count=3, pre_rally_window=30, post_rally_window=60)
         # 初始化相关id和序列
@@ -56,6 +63,7 @@ class VideoClipProcessor(AbstractProcessor):
         start = time.time()
         actioncounter_with_id = None
         action_timestamps_with_id = None
+        temp_shot_count = None
         # cap = cv2.VideoCapture(message.value.videoUrl)
         # 遍历检测
         while True:
@@ -68,7 +76,7 @@ class VideoClipProcessor(AbstractProcessor):
             print(frame_ind)
             human_bboxes, racket_bboxes, ball_bboxes = player_detector.detect(frame)
             trackers, matched_dets, primary_id = player_tracker.update(human_bboxes, racket_bboxes)
-            
+            print(human_bboxes)
             t2 = time.time()
             if trackers is not None and primary_id is not None:
                 player_bbox = trackers[trackers[:, 4] == primary_id].squeeze()

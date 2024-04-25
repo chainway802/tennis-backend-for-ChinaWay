@@ -1,11 +1,13 @@
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 import cv2
+from oss.OSSHelper import OSSHelper
+from util.io import load_yaml_config
 class VideoLoader:
-    def __init__(self, videoUrl):
-        self.videoUrl = videoUrl
-        self.clip = VideoFileClip(videoUrl)
-        self.cap = cv2.VideoCapture(videoUrl)
-        
+    def __init__(self, video_path):
+        self.clip = VideoFileClip(video_path)
+        self.cap = cv2.VideoCapture(video_path)
+
+            
     def get_video_info(self):
         fps = self.clip.fps
         w, h = self.clip.size

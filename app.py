@@ -8,7 +8,8 @@
 """
 from service import AlgorithmService
 
-
+import os
+os.chdir("tennis-backend-new/tennis-backend")
 
 
 

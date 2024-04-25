@@ -38,7 +38,7 @@ class PlayerDetector(object):
     racket_thr: 拍子的置信度阈值
     '''
     def __init__(self, human_area_sort=False, human_max_numbers_by_area=10, human_max_numbers=4, human_thr=0.4,
-                 racket_area_sort=False, racket_max_numbers_by_area=5, racket_max_numbers=1, racket_thr=0.3, channel_convert=False):
+                 racket_area_sort=False, racket_max_numbers_by_area=5, racket_max_numbers=2, racket_thr=0.3, channel_convert=False):
         self.channel_convert = channel_convert
         self.human_max_numbers_by_area = human_max_numbers_by_area
         self.racket_max_numbers_by_area = racket_max_numbers_by_area
