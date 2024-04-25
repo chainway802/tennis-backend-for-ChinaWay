@@ -11,7 +11,7 @@ import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import cv2
 import util
-import tennis
+# import tennis
 import time
 import datetime
 import pickle
@@ -471,6 +471,19 @@ def upload_video_to_oss(video_path):
         print("upload error: ", e)
 
 
+def download_video_to_local(object_file_url):
+    # 先解析配置文件
+    conf = util.load_yaml_config(r"./config/config.yaml")
+    # 初始化oss服务
+    oss = OSSHelper(**conf["oss"])
+    # 下载视频
+    try:
+        local_temp_video_path = oss.download_file(object_file_url)
+        print(local_temp_video_path)
+    except Exception as e:
+        print("upload error: ", e)
+
+
 if __name__ == '__main__':
     # 测试检测球场线
     # test_detect_court(r"./static/video/video_input1.mp4")
@@ -497,3 +510,6 @@ if __name__ == '__main__':
 
     # 上传本地视频到oss
     # upload_video_to_oss(r"/aidata/mmfuck/test_video/input/707b806b3f9548dca14f478cc29d8798/Raw_Video/video40.mp4")
+
+    # 下载oss视频到本地
+    download_video_to_local(r"https://astree.oss-cn-shanghai.aliyuncs.com/1_1713701511071.mp4")
